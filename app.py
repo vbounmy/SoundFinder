@@ -8,13 +8,16 @@ import os
 import re
 import unicodedata
 import base64
+import json
 from dotenv import load_dotenv
 from pathlib import Path
+from mistralai import Mistral
 
 load_dotenv()
 
 GENIUS_API_KEY = os.getenv("GENIUS_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 # GENIUS_API_KEY = "m17Yir9x2IJlr2NIISUD6ge8O2gJ26kVLx72rMajYdGVtm5Jr-1L0shJmww1SChw"
 # SERPER_API_KEY = "c9defe3057230b55f73bf0095972b9dd8410cc13"
@@ -96,54 +99,114 @@ def search_google(lyrics_fragment):
     data = response.json()
 
     results = []
+    youtube_link = None
     if "organic" in data:
         for item in data["organic"][:5]:
+            title = item.get("title", "")
+            snippet = item.get("snippet", "")
+            link = item.get("link", "")
             results.append({
-                "title": item.get("title", ""),
-                "snippet": item.get("snippet", "")
+                "title": title,
+                "snippet": snippet,
+                "link": link
             })
+            #Premier lien YouTube
+            if not youtube_link and "youtube.com/watch" in link:
+                youtube_link = link
 
-    return results
+    return results, youtube_link
+
+
+# # ---------------------------
+# # AGENT FINAL DECISION
+# # ---------------------------
+# def decide_final_title(genius_results, google_results):
+#     title_counts = {}
+
+#     # Genius (poids 1)
+#     for item in genius_results or []:
+#         title = item.get("title")
+#         if title:
+#             title = normalize_title(title)
+#             title_counts[title] = title_counts.get(title, 0) + 1
+
+#     # Google (poids 2)
+#     for item in google_results or []:
+#         title = item.get("title")
+#         snippet = item.get("snippet", "")
+#         if snippet:
+#             m = re.search(r"(.+?) lyrics", snippet.lower())
+#             if m: title = m.group(1)
+#         if title:
+#             title = normalize_title(title)
+#             title_counts[title] = title_counts.get(title, 0) + 2
+
+#     if not title_counts:
+#         return "Aucune correspondance trouvée"
+
+#     return max(title_counts, key=title_counts.get)
+
+
+# def normalize_title(title):
+#     title = title.lower()
+#     title = unicodedata.normalize("NFKD", title)
+#     title = "".join(c for c in title if not unicodedata.combining(c))
+#     title = re.sub(r"\([^)]*\)", "", title)
+#     title = re.sub(r"[^a-z0-9\s]", "", title)
+#     return " ".join(title.split()).strip()
 
 
 # ---------------------------
-# AGENT FINAL : DECISION
+# AGENT FINAL DECISION :  LLM
 # ---------------------------
-def decide_final_title(genius_results, google_results):
-    title_counts = {}
 
-    # Genius (poids 1)
-    for item in genius_results or []:
-        title = item.get("title")
-        if title:
-            title = normalize_title(title)
-            title_counts[title] = title_counts.get(title, 0) + 1
+def decide_final_title_llm(lyrics_fragment, genius_results, google_results):
+    """ 
+    Utilise Mistral AI pour décider du titre excat et de l'artiste d'une chanson à partir d'un fragment de paroles et des résultats de recherche.
+    """
 
-    # Google (poids 2)
-    for item in google_results or []:
-        title = item.get("title")
-        snippet = item.get("snippet", "")
-        if snippet:
-            m = re.search(r"(.+?) lyrics", snippet.lower())
-            if m: title = m.group(1)
-        if title:
-            title = normalize_title(title)
-            title_counts[title] = title_counts.get(title, 0) + 2
+    client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
 
-    if not title_counts:
-        return "Aucune correspondance trouvée"
+    #Prompt
+    prompt = f"""
+    Tu es un assistant spécialisé dans l'identification de chansons.
+    Paroles transmises : "{lyrics_fragment}"
 
-    return max(title_counts, key=title_counts.get)
+    Résultats Genius : {json.dumps(genius_results, ensure_ascii=False)}
+    Résultats Google : {json.dumps(google_results, ensure_ascii=False)}
 
+    Retourne uniquement un JSON avec le format suivant :
+    {{
+        "title": "<titre excat>",
+        "artist": "<artiste>"
+    }}
+    Si tu n'es pas sûr, mets :
+    {{
+        "title": "Aucune correspondance trouvée",
+        "artist": "Unknown"
+    }}
+    """
 
-def normalize_title(title):
-    title = title.lower()
-    title = unicodedata.normalize("NFKD", title)
-    title = "".join(c for c in title if not unicodedata.combining(c))
-    title = re.sub(r"\([^)]*\)", "", title)
-    title = re.sub(r"[^a-z0-9\s]", "", title)
-    return " ".join(title.split()).strip()
+    #Appel à Mistral
+    chat_response = client.chat.complete(
+        model="mistral-small-latest",
+        messages=[
+            {"role": "system", "content": "Tu es un assistant qui identifie des chansons."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"}
+    )
 
+    #Récupération du JSON renvoyé
+    try:
+        final_song = chat_response.choices[0].message.content
+        if isinstance(final_song, str):
+            final_song = json.loads(final_song)
+        title = final_song.get("title", "Aucune correspondance trouvée")
+        artist = final_song.get("artist", "Unknown")
+    except Exception as e:
+        title, artist = "Aucune correspondance trouvée", "Unknown"
+    return {"title": title, "artist": artist}
 
 
 # ---------------------------
@@ -151,43 +214,54 @@ def normalize_title(title):
 # ---------------------------
 def vocal_pipeline(audio, language):
 
-    if audio is None:
-        return "Pas d'audio", "", [], [], "Aucune correspondance trouvée"
-
-    if isinstance(audio, dict):
-        sample_rate = audio.get("sample_rate", 44100)
-        data = audio.get("data", None)
-        if data is None:
-            return "Audio invalide", "", [], [], "Aucune correspondance trouvée"
-    else:
-        sample_rate, data = audio
-
-    data = data.astype(np.int16)
-
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        scipy.io.wavfile.write(tmp.name, sample_rate, data)
-        temp_wav = tmp.name
-
-    # 1. TRANSCRIPTION
     try:
-        with sr.AudioFile(temp_wav) as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data, language=language_map[language])
 
+        if audio is None:
+            return "Pas d'audio", "", [], [], "Aucune correspondance trouvée", ""
+
+        if isinstance(audio, dict):
+            sample_rate = audio.get("sample_rate", 44100)
+            data = audio.get("data", None)
+            if data is None:
+                return "Audio invalide", "", [], [], "Aucune correspondance trouvée"
+        else:
+            sample_rate, data = audio
+
+        data = data.astype(np.int16)
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            scipy.io.wavfile.write(tmp.name, sample_rate, data)
+            temp_wav = tmp.name
+
+        # 1. TRANSCRIPTION
+        try:
+            with sr.AudioFile(temp_wav) as source:
+                audio_data = recognizer.record(source)
+                text = recognizer.recognize_google(audio_data, language=language_map[language])
+
+        except Exception as e:
+            return (f"Erreur transcription : {e}", "", [], [], "Aucune correspondance trouvée", "")
+
+        # 2. NLP
+        lyrics_fragment = agent_nlp(text)["lyrics_fragment"]
+
+        # 3. DOUBLE SEARCH
+        genius_results = search_genius(lyrics_fragment)
+        google_results, youtube_link = search_google(lyrics_fragment)
+
+        # 4. FINAL DECISION
+        final_song = decide_final_title_llm(lyrics_fragment, genius_results, google_results)
+        final_title = f"{final_song['title']} by {final_song['artist']}"
+        youtube_md = f"[Watch on YouTube]({youtube_link})" if youtube_link else "No YouTube link found"
+
+        return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md
+    
     except Exception as e:
-        return f"Erreur transcription : {e}", "", [], [], "Aucune correspondance trouvée"
-
-    # 2. NLP
-    lyrics_fragment = agent_nlp(text)["lyrics_fragment"]
-
-    # 3. DOUBLE SEARCH
-    genius_results = search_genius(lyrics_fragment)
-    google_results = search_google(lyrics_fragment)
-
-    # 4. FINAL DECISION
-    final_title = decide_final_title(genius_results, google_results)
-
-    return text, lyrics_fragment, genius_results, google_results, final_title
+        import traceback
+        tb = traceback.format_exc()
+        print("\n=== TRACEBACK COMPLET ===\n")
+        print(tb)
+        return f"Erreur interne : {e}\n\nTraceback :\n{tb}", "", [], [], "Aucune correspondance trouvée", ""
 
 
 # ---------------------------
@@ -225,13 +299,29 @@ textarea, input, select {
 }
 
 @keyframes fadeInText {
-    from { opacity: 0; transform: translateX(-50px); }
-    to { opacity: 1; transform: translateX(0); }
+    from { 
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
-@keyframes moveVinyle {
-    from { opacity: 0; transform: translateX(-100px) scale(0.5); }
-    to { opacity: 1; transform: translateX(0) scale(1); }
+@keyframes vinyleEntry {
+    0% { 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    50% { 
+        opacity: 1; 
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translate(180%, -50%) scale(1);
+    }
 }
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -253,20 +343,24 @@ textarea, input, select {
     box-shadow: 0 0 35px rgba(79,70,229,0.5);
     backdrop-filter: blur(6px);
 }
-
+#landing-welcome{
+    font-size: 20px !important;
+    height: 50px;
+}
 #landing-container {
     position: relative;
-    width: 800px;
-    height: 300px;
+    width: 600px;
+    height: 250px;
     margin: auto;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 #landing-text {
     width: 200px;
     text-align: right;
-    font-size: 20px !important;
+    font-size: 16px !important;
     position: absolute;
     left: 0;
     color: white;
@@ -275,47 +369,33 @@ textarea, input, select {
 }
 #landing-text hr {
     border: 1px solid #4F46E5;
-    width: 100px;
+    width: 90px;
     margin: 10px 0;
 }
 #landing-logo,
 #landing-logo .gr-image,
 #landing-logo .wrap,
 #landing-logo .container {
-    width: 150px;
-    height: 150px;
+    width: 190px;
+    height: 190px;
     z-index: 2;
+    position: relative;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
 }
 #landing-vinyle {
-    width: 120px;
-    height: 120px;
+    width: 188px;
+    height: 188px;
     border-radius: 50%;
     position: absolute;
-    right: 0;
+    left: 52%;
+    transform: translate(-50%, -50%) scale(0.5);
     opacity: 0;
-    transform: translateX(-100px) scale(0.5);
     z-index: 1;
-    animation: moveVinyle 1.5s ease forwards 0.5s, spin 10s linear infinite infinite;
+    animation: vinyleEntry 1.5s ease forwards 0.5s, spin 10s linear infinite;
 }
 
-#vinyle,
-#vinyle .gr-image,
-#vinyle .wrap,
-#vinyle .container {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-#vinyle img {
-    width: 250px;
-    height: 250px;
-    background: transparent !important;
-    border-radius: 50%;
-    animation: spin 10s linear infinite;
-}
 
 .landing-enter-btn {
     display: flex !important;
@@ -360,6 +440,7 @@ textarea, input, select {
     width: 64px;
     height: 64px;
 }
+
 .neon-box {
     margin: 15px;
     padding: 20px;
@@ -378,6 +459,23 @@ textarea, input, select {
     font-size: 16px !important;
     font-weight: 500 !important;
 }
+
+#vinyle,
+#vinyle .gr-image,
+#vinyle .wrap,
+#vinyle .container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+#vinyle img {
+    width: 250px;
+    height: 250px;
+    background: transparent !important;
+    border-radius: 50%;
+    animation: spin 10s linear infinite;
+}
+
 .back_clear_btn{
     display: flex !important;
     flex-direction: row !important;
@@ -421,7 +519,16 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
 
     with gr.Column(visible=True, elem_id="landing") as landing_col:
 
-        with gr.Column(visible=True, elem_classes="landing-vinyle"):
+        with gr.Column(visible=True, elem_classes="landing-welcome-container"):
+            gr.HTML("""
+                <div id="landing-welcome">
+                    <div id="landing-text">
+                        <p>Welcome!</p>
+                    </div>
+                </div>
+            """)
+
+        with gr.Column(visible=True, elem_classes="landing-vinyle-container"):
             gr.HTML(f"""
                 <div id="landing-container">
                     <div id="landing-text">
@@ -487,6 +594,8 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
             """)
             gr.Image("images/vinyle.png", elem_id="vinyle", show_label=False)
             out_final_title = gr.Textbox(lines=2, show_label=False)
+            out_youtube = gr.Markdown(label="YouTubes Link")
+
 
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
           back_btn  = gr.Button("Back to Landing", elem_id="back-btn")
@@ -495,12 +604,12 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
         submit_btn.click(
             fn=vocal_pipeline,
             inputs=[audio_input, lang_choice],
-            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title]
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
         )
 
         clear_btn.click(
-            fn=lambda: ("", "", [], []),
-            outputs=[out_transcript, out_lyrics, out_genius, out_google]
+            fn=lambda: ("", "", [], [], "", ""),
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
         )
 
     # ====== NAVIGATION BUTTONS
