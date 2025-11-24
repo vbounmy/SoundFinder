@@ -7,17 +7,17 @@ import requests
 import os
 import re
 import unicodedata
+import base64
 from dotenv import load_dotenv
 from pathlib import Path
 
-# load_dotenv()
+load_dotenv()
 
-# GENIUS_API_KEY = os.getenv("GENIUS_API_KEY")
-# SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+GENIUS_API_KEY = os.getenv("GENIUS_API_KEY")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
-
-GENIUS_API_KEY = "m17Yir9x2IJlr2NIISUD6ge8O2gJ26kVLx72rMajYdGVtm5Jr-1L0shJmww1SChw"
-SERPER_API_KEY = "c9defe3057230b55f73bf0095972b9dd8410cc13"
+# GENIUS_API_KEY = "m17Yir9x2IJlr2NIISUD6ge8O2gJ26kVLx72rMajYdGVtm5Jr-1L0shJmww1SChw"
+# SERPER_API_KEY = "c9defe3057230b55f73bf0095972b9dd8410cc13"
 
 recognizer = sr.Recognizer()
 
@@ -193,17 +193,24 @@ def vocal_pipeline(audio, language):
 # ---------------------------
 # CSS
 # ---------------------------
+def img_to_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode("utf-8")
+    
+logo_base64 = img_to_base64("images/logo_vinyle_cover.png")
+vinyle_base64 = img_to_base64("images/vinyle.png")
+
 custom_css = """
 * {
-  font-family: "Inter", sans-serif !important;
+    font-family: "Inter", sans-serif !important;
 }
 
 body {
-  background: radial-gradient(circle at top, #100E30, #000000) !important;
+    background: radial-gradient(circle at top, #100E30, #000000) !important;
 }
 .gradio-container {
-  background: transparent !important;
-  color: white !important;
+    background: transparent !important;
+    color: white !important;
 }
 label{
     background: transparent !important;
@@ -212,9 +219,19 @@ label{
     font-size: 16px;
 }
 textarea, input, select {
-  background: transparent !important;
-  color: white !important;
-  border-radius: 10px !important;
+    background: transparent !important;
+    color: white !important;
+    border-radius: 10px !important;
+}
+
+@keyframes fadeInText {
+    from { opacity: 0; transform: translateX(-50px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes moveVinyle {
+    from { opacity: 0; transform: translateX(-100px) scale(0.5); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
 }
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -222,56 +239,75 @@ textarea, input, select {
 }
 
 #landing{
-  margin: auto;
-  padding: 50px;
-  max-width: 820px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(79,70,229,0.9);
-  border-radius: 26px;
-  box-shadow: 0 0 35px rgba(79,70,229,0.5);
-  backdrop-filter: blur(6px);
+    margin: auto;
+    padding: 50px;
+    max-width: 820px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(79,70,229,0.9);
+    border-radius: 26px;
+    box-shadow: 0 0 35px rgba(79,70,229,0.5);
+    backdrop-filter: blur(6px);
 }
-.landing-vinyle {
-  display: flex !important;
-  flex-direction: row !important;
-  justify-content: center !important;
-  align-items: center !important;
-  gap: 15px !important;
-  width: auto !important;
-  max-width: fit-content !important;
+
+#landing-container {
+    position: relative;
+    width: 800px;
+    height: 300px;
+    margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 #landing-text {
-  width: 200px;
-  text-align: right;
-  font-size: 20px !important;
+    width: 200px;
+    text-align: right;
+    font-size: 20px !important;
+    position: absolute;
+    left: 0;
+    color: white;
+    opacity: 0;
+    animation: fadeInText 1s forwards 0.5s;
 }
-#app-logo-landing,
-#app-logo-landing .gr-image,
-#app-logo-landing .wrap,
-#app-logo-landing .container {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+#landing-text hr {
+    border: 1px solid #4F46E5;
+    width: 100px;
+    margin: 10px 0;
 }
-#app-logo-landing img {
-  width: 250px;
-  height: 250px;
-  border-radius: 10px;
-  background: transparent !important
+#landing-logo,
+#landing-logo .gr-image,
+#landing-logo .wrap,
+#landing-logo .container {
+    width: 150px;
+    height: 150px;
+    z-index: 2;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+#landing-vinyle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    position: absolute;
+    right: 0;
+    opacity: 0;
+    transform: translateX(-100px) scale(0.5);
+    z-index: 1;
+    animation: moveVinyle 1.5s ease forwards 0.5s, spin 10s linear infinite infinite;
 }
 
 #vinyle,
 #vinyle .gr-image,
 #vinyle .wrap,
 #vinyle .container {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 #vinyle img {
     width: 250px;
@@ -282,93 +318,93 @@ textarea, input, select {
 }
 
 .landing-enter-btn {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 #enter-btn {
-  height: 50px !important;
-  width: 180px !important;
-  font-size: 20px !important;
-  font-weight: 300 !important;
-  border-radius: 50px !important;
-  background: rgb(79,70,229) !important;
-  color: white !important;
+    height: 50px !important;
+    width: 180px !important;
+    font-size: 20px !important;
+    font-weight: 300 !important;
+    border-radius: 50px !important;
+    background: rgb(79,70,229) !important;
+    color: white !important;
 }
 
 .header{
-  margin: auto;
-  padding: 50px;
-  width: auto !important;
-  max-width: fit-content !important;
-  display: flex;
-  flex-direction: row;
-  gap: 15px;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0,0,0,0.45);
-  border: 1px solid rgba(79,70,229,0.9);
-  border-radius: 26px;
-  box-shadow: 0 0 35px rgba(79,70,229,0.5);
-  backdrop-filter: blur(6px);
+    margin: auto;
+    padding: 50px;
+    width: auto !important;
+    max-width: fit-content !important;
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(79,70,229,0.9);
+    border-radius: 26px;
+    box-shadow: 0 0 35px rgba(79,70,229,0.5);
+    backdrop-filter: blur(6px);
 }
 #app-logo,
 #app-logo .gr-image,
 #app-logo .wrap,
 #app-logo .container {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 #app-logo img {
-  width: 64px;
-  height: 64px;
+    width: 64px;
+    height: 64px;
 }
 .neon-box {
-  margin: 15px;
-  padding: 20px;
-  background: transparent !important;
-  border: 1px solid rgba(79,70,229,0.9) !important;
-  border-radius: 25px !important;
-  box-shadow: 0 0 18px rgba(79,70,229,0.5);
-  backdrop-filter: blur(6px);
+    margin: 15px;
+    padding: 20px;
+    background: transparent !important;
+    border: 1px solid rgba(79,70,229,0.9) !important;
+    border-radius: 25px !important;
+    box-shadow: 0 0 18px rgba(79,70,229,0.5);
+    backdrop-filter: blur(6px);
 }
 #submit-btn {
-  background: linear-gradient(90deg, #4F46E5, #DE1A9C) !important;
-  color: white !important;
-  height: 30px !important;
-  width: 130px !important;
-  border-radius: 50px !important;
-  font-size: 16px !important;
-  font-weight: 500 !important;
+    background: linear-gradient(90deg, #4F46E5, #DE1A9C) !important;
+    color: white !important;
+    height: 30px !important;
+    width: 130px !important;
+    border-radius: 50px !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
 }
 .back_clear_btn{
-  display: flex !important;
-  flex-direction: row !important;
-  justify-content: center !important;
-  align-items: center !important;
-  align-content: center !important;
-  gap: 15px !important;
-  width: auto !important;
-  max-width: fit-content !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    align-content: center !important;
+    gap: 15px !important;
+    width: auto !important;
+    max-width: fit-content !important;
 }
 #clear-btn{
-  background: #505050 !important;
-  color: white !important;
-  height: 30px !important;
-  width: 130px !important;
-  font-size: 16px !important;
-  border-radius: 50px !important;
-  font-weight: 500 !important;
+    background: #505050 !important;
+    color: white !important;
+    height: 30px !important;
+    width: 130px !important;
+    font-size: 16px !important;
+    border-radius: 50px !important;
+    font-weight: 500 !important;
 }
 #back-btn {
-  background: #505050 !important;
-  color: white !important;
-  height: 30px !important;
-  width: 200px !important;
-  font-size: 16px !important;
-  border-radius: 50px !important;
-  font-weight: 500 !important;
+    background: #505050 !important;
+    color: white !important;
+    height: 30px !important;
+    width: 200px !important;
+    font-size: 16px !important;
+    border-radius: 50px !important;
+    font-weight: 500 !important;
 }
 """
 
@@ -385,29 +421,33 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
 
     with gr.Column(visible=True, elem_id="landing") as landing_col:
 
-      with gr.Column(visible=True, elem_classes="landing-vinyle"):
-          gr.HTML("""
-            <div id=landing-text>
-                <p>FIND YOUR <b>SONG</b></p>
-                <p>JUST A <b>CLICK</b> AWAY</p>
-            </div>
-          """)
-          gr.Image("logo.jpeg", elem_id="app-logo-landing", show_label=False)
+        with gr.Column(visible=True, elem_classes="landing-vinyle"):
+            gr.HTML(f"""
+                <div id="landing-container">
+                    <div id="landing-text">
+                        <p>FIND YOUR <b>SONG</b></p>
+                        <hr>
+                        <p>JUST A <b>CLICK</b> AWAY</p>
+                    </div>
+                    <img id="landing-logo" src="data:image/png;base64,{logo_base64}" />
+                    <img id="landing-vinyle" src="data:image/png;base64,{vinyle_base64}" />
+                </div>
+            """)
 
-      with gr.Column(visible=True, elem_classes="landing-enter-btn"):
-          enter_btn = gr.Button("🎧 Enter App", elem_id="enter-btn")
+        with gr.Column(visible=True, elem_classes="landing-enter-btn"):
+            enter_btn = gr.Button("🎧 Enter App", elem_id="enter-btn")
 
     # ====== APP PAGE ======
     with gr.Column(visible=False) as app_col:
 
         with gr.Column(elem_classes="header"):
-          gr.Image("logo.jpeg", elem_id="app-logo", show_label=False)
-          gr.HTML("""
-            <div id=header-text>
-                <p>Find a song easily from your voice,</p>
-                <p>in any language</p>
-            </div>
-          """)
+            gr.Image("images/logo.png", elem_id="app-logo", show_label=False)
+            gr.HTML("""
+                <div id=header-text>
+                    <p>Find a song easily from your voice,</p>
+                    <p>in any language</p>
+                </div>
+            """)
 
         with gr.Column(elem_classes="neon-box"):
             audio_input = gr.Audio(type="numpy", label="🎤 Drop your audio or record your voice")
@@ -445,7 +485,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                 <p>seems to be ...</p>
             </div>
             """)
-            gr.Image("vinyle png.png", elem_id="vinyle", show_label=False)
+            gr.Image("images/vinyle.png", elem_id="vinyle", show_label=False)
             out_final_title = gr.Textbox(lines=2, show_label=False)
 
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
