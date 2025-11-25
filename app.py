@@ -21,6 +21,7 @@ MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
 # GENIUS_API_KEY = "m17Yir9x2IJlr2NIISUD6ge8O2gJ26kVLx72rMajYdGVtm5Jr-1L0shJmww1SChw"
 # SERPER_API_KEY = "c9defe3057230b55f73bf0095972b9dd8410cc13"
+# MISTRAL_API_KEY ="WBPRJ3uH9OLYBxUWDe8MKncRV5kUiT7I"
 
 recognizer = sr.Recognizer()
 
@@ -115,46 +116,6 @@ def search_google(lyrics_fragment):
                 youtube_link = link
 
     return results, youtube_link
-
-
-# # ---------------------------
-# # AGENT FINAL DECISION
-# # ---------------------------
-# def decide_final_title(genius_results, google_results):
-#     title_counts = {}
-
-#     # Genius (poids 1)
-#     for item in genius_results or []:
-#         title = item.get("title")
-#         if title:
-#             title = normalize_title(title)
-#             title_counts[title] = title_counts.get(title, 0) + 1
-
-#     # Google (poids 2)
-#     for item in google_results or []:
-#         title = item.get("title")
-#         snippet = item.get("snippet", "")
-#         if snippet:
-#             m = re.search(r"(.+?) lyrics", snippet.lower())
-#             if m: title = m.group(1)
-#         if title:
-#             title = normalize_title(title)
-#             title_counts[title] = title_counts.get(title, 0) + 2
-
-#     if not title_counts:
-#         return "Aucune correspondance trouvée"
-
-#     return max(title_counts, key=title_counts.get)
-
-
-# def normalize_title(title):
-#     title = title.lower()
-#     title = unicodedata.normalize("NFKD", title)
-#     title = "".join(c for c in title if not unicodedata.combining(c))
-#     title = re.sub(r"\([^)]*\)", "", title)
-#     title = re.sub(r"[^a-z0-9\s]", "", title)
-#     return " ".join(title.split()).strip()
-
 
 # ---------------------------
 # AGENT FINAL DECISION :  LLM
