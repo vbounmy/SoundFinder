@@ -171,6 +171,32 @@ def decide_final_title_llm(lyrics_fragment, genius_results, google_results):
 
 
 # ---------------------------
+# YOUTUBE LINK TO EMBED
+# ---------------------------
+
+def youtube_to_embed(url: str):
+    if url is None:
+        return None
+
+    # 1st case : standard youtube links
+    if "watch?v=" in url:
+        video_id = url.split("watch?v=")[1].split("&")[0]
+        return f"https://www.youtube.com/embed/{video_id}"
+
+    # 2nd case : liens m.youtube.com links
+    if "v=" in url:
+        video_id = url.split("v=")[1].split("&")[0]
+        return f"https://www.youtube.com/embed/{video_id}"
+
+    # 3rd case : shorts links
+    if "/shorts/" in url:
+        video_id = url.split("/shorts/")[1].split("?")[0]
+        return f"https://www.youtube.com/embed/{video_id}"
+
+    return None
+
+
+# ---------------------------
 # PIPELINE
 # ---------------------------
 def vocal_pipeline(audio, language):
@@ -214,8 +240,16 @@ def vocal_pipeline(audio, language):
         final_song = decide_final_title_llm(lyrics_fragment, genius_results, google_results)
         final_title = f"{final_song['title']} by {final_song['artist']}"
         youtube_md = f"[Watch on YouTube]({youtube_link})" if youtube_link else "No YouTube link found"
+        embed_url = youtube_to_embed(youtube_link)
+        iframe_html = (
+            f'<iframe width="900" height="500" src="{embed_url}" '
+            f'frameborder="0" allow="accelerometer; autoplay; clipboard-write; '
+            f'encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+            if embed_url
+            else "<p>No video available</p>"
+        )
 
-        return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md
+        return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md, iframe_html
     
     except Exception as e:
         import traceback
@@ -556,8 +590,8 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
             gr.Image("images/vinyle.png", elem_id="vinyle", show_label=False)
             out_final_title = gr.Textbox(lines=2, show_label=False)
             out_youtube = gr.Markdown(label="YouTubes Link")
-
-
+            out_iframe = gr.HTML(show_label=False)
+            
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
           back_btn  = gr.Button("Back to Landing", elem_id="back-btn")
           clear_btn = gr.Button("Clear", elem_id="clear-btn")
@@ -565,12 +599,12 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
         submit_btn.click(
             fn=vocal_pipeline,
             inputs=[audio_input, lang_choice],
-            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube, out_iframe]
         )
 
         clear_btn.click(
             fn=lambda: ("", "", [], [], "", ""),
-            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube, out_iframe]
         )
 
     # ====== NAVIGATION BUTTONS
