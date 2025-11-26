@@ -9,6 +9,7 @@ import re
 import unicodedata
 import base64
 import json
+import urllib.parse
 from dotenv import load_dotenv
 from pathlib import Path
 from mistralai import Mistral
@@ -170,6 +171,45 @@ def decide_final_title_llm(lyrics_fragment, genius_results, google_results):
     return {"title": title, "artist": artist}
 
 # ---------------------------
+# YOUTUBE IFRAME HELPER
+# ---------------------------
+def make_youtube_iframe(youtube_link: str) -> str:
+    """Construit un embed YouTube (iframe) à partir d'un lien."""
+    if not youtube_link:
+        return "No YouTube link found"
+
+    video_id = None
+    if "watch?v=" in youtube_link:
+        video_id = youtube_link.split("watch?v=")[1].split("&")[0]
+    elif "youtu.be/" in youtube_link:
+        video_id = youtube_link.split("youtu.be/")[1].split("?")[0]
+
+    if not video_id:
+        return f"[Watch on YouTube]({youtube_link})"
+
+    embed_url = f"https://www.youtube.com/embed/{video_id}"
+    return f"""
+    <div style="width:100%; display:flex; justify-content:center;">
+        <iframe width="720" height="405"
+        src="{embed_url}"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+    </div>
+    """
+
+# ---------------------------
+# SPOTIFY SEARCH HELPER
+# ---------------------------
+def build_spotify_search_url(title: str, artist: str) -> str | None:
+    """Construit une URL de recherche Spotify à partir du titre + artiste."""
+    if not title or title == "Aucune correspondance trouvée":
+        return None
+    query = f"{title} {artist}".strip()
+    q_encoded = urllib.parse.quote_plus(query)
+    return f"https://open.spotify.com/search/{q_encoded}"
+
+# ---------------------------
 # PIPELINE
 # ---------------------------
 def vocal_pipeline(audio, language):
@@ -209,12 +249,18 @@ def vocal_pipeline(audio, language):
         genius_results = search_genius(lyrics_fragment)
         google_results, youtube_link = search_google(lyrics_fragment)
 
-        # 4. FINAL DECISION
+        # 4. FINAL DECISION (LLM)
         final_song = decide_final_title_llm(lyrics_fragment, genius_results, google_results)
         final_title = f"{final_song['title']} by {final_song['artist']}"
-        youtube_md = f"[Watch on YouTube]({youtube_link})" if youtube_link else "No YouTube link found"
 
-        return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md
+        # 5. YOUTUBE + SPOTIFY LINKS
+        youtube_md = f"[Watch on YouTube]({youtube_link})" if youtube_link else "No YouTube link found"
+        youtube_html = make_youtube_iframe(youtube_link) if youtube_link else "No YouTube link found"
+
+        spotify_url = build_spotify_search_url(final_song['title'], final_song['artist'])
+        spotify_md = f"[Open in Spotify]({spotify_url})" if spotify_url else "No Spotify link found"
+
+        return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md, youtube_html, spotify_md
     
     except Exception as e:
         import traceback
@@ -225,7 +271,7 @@ def vocal_pipeline(audio, language):
 
 
 # ---------------------------
-# CSS
+# CSS + IMAGES
 # ---------------------------
 def img_to_base64(image_path):
     with open(image_path, "rb") as img_file:
@@ -235,6 +281,8 @@ def img_to_base64(image_path):
 logo_vinyle_base64 = img_to_base64("images/logo_vinyle_cover.png")
 vinyle_base64 = img_to_base64("images/vinyle.png")
 logo_base64 = img_to_base64("images/logo.png")
+youtube_logo_base64 = img_to_base64("images/logo_youtube.png")
+spotify_logo_base64 = img_to_base64("images/logo_spotify.png")
 
 # Custom CSS
 custom_css = """
@@ -800,6 +848,28 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                 """)
                 out_final_title = gr.Textbox(lines=2, show_label=False, elem_id="final-title-box")
             out_youtube = gr.Markdown(label="YouTubes Link")
+
+        with gr.Accordion("", open=True, elem_classes="neon-box"):
+           gr.HTML(f"""
+                <div style="display:flex;align-items:center;gap:15px;margin-bottom:12px;">
+                    <img src="data:image/png;base64,{youtube_logo_base64}"
+                        alt="YouTube"
+                        style="width:120px;height:auto;object-fit:contain;">
+                </div>
+            """)
+           out_youtube_video = gr.HTML()
+
+        with gr.Accordion("", open=True, elem_classes="neon-box"):
+            gr.HTML(f"""
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                    <img src="data:image/jpeg;base64,{spotify_logo_base64}"
+                        alt="Spotify"
+                        style="width:56px;height:56px;">
+                    <h3 style="margin:0;font-size:22px;">Spotify</h3>
+                </div>
+            """)
+
+            out_spotify = gr.Markdown(label="")
             
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
           back_btn  = gr.Button("← Back", elem_id="back-btn")
@@ -808,12 +878,12 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
         submit_btn.click(
             fn=vocal_pipeline,
             inputs=[audio_input, lang_choice],
-            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube, out_youtube_video, out_spotify]
         )
 
         clear_btn.click(
-            fn=lambda: ("", "", [], [],"", ""),
-            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube]
+            fn=lambda: ("", "", [], [], "", "", "", ""),
+            outputs=[out_transcript, out_lyrics, out_genius, out_google, out_final_title, out_youtube, out_youtube_video, out_spotify]
         )
 
     # ====== NAVIGATION BUTTONS
@@ -823,4 +893,4 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
     back_btn.click(lambda: (gr.update(visible=True), gr.update(visible=False)),
                    outputs=[landing_col, app_col])
 
-demo.launch()
+demo.launch(share=True)
