@@ -267,7 +267,7 @@ def vocal_pipeline(audio, language):
         tb = traceback.format_exc()
         print("\n=== TRACEBACK COMPLET ===\n")
         print(tb)
-        return f"Erreur interne : {e}\n\nTraceback :\n{tb}", "", [], [], "Aucune correspondance trouvée", ""
+        return f"Erreur interne : {e}\n\nTraceback :\n{tb}", "", [], [], "Aucune correspondance trouvée", "", "", ""
 
 
 # ---------------------------
