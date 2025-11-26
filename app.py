@@ -702,6 +702,10 @@ textarea, input, select {
     max-width: 350px !important;
     text-align: center !important;
 }
+#final-result-text {
+    font-size: 20px !important;
+    letter-spacing: clamp(-1.75px, -0.25vw, -3.5px);
+}
 
 .back_clear_btn{
     display: flex !important;
@@ -850,14 +854,14 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
             out_youtube = gr.Markdown(label="YouTubes Link")
 
         with gr.Accordion("", open=True, elem_classes="neon-box"):
-           gr.HTML(f"""
-                <div style="display:flex;align-items:center;gap:15px;margin-bottom:12px;">
-                    <img src="data:image/png;base64,{youtube_logo_base64}"
-                        alt="YouTube"
-                        style="width:120px;height:auto;object-fit:contain;">
-                </div>
-            """)
-           out_youtube_video = gr.HTML()
+            gr.HTML(f"""
+                    <div style="display:flex;align-items:center;gap:15px;margin-bottom:12px;">
+                        <img src="data:image/png;base64,{youtube_logo_base64}"
+                            alt="YouTube"
+                            style="width:120px;height:auto;object-fit:contain;">
+                    </div>
+                """)
+            out_youtube_video = gr.HTML()
 
         with gr.Accordion("", open=True, elem_classes="neon-box"):
             gr.HTML(f"""
