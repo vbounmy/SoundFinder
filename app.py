@@ -612,6 +612,11 @@ textarea, input, select {
     font-size: 16px !important;
     font-weight: 500 !important;
 }
+#submit-btn:hover {
+    background: transparent !important;
+    color: rgb(255,255,255) !important;
+    border: 1px solid #4F46E5 !important;
+}
 
 .final-result-container {
     margin: 15px;
@@ -797,7 +802,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
             out_youtube = gr.Markdown(label="YouTubes Link")
             
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
-          back_btn  = gr.Button("Back", elem_id="back-btn")
+          back_btn  = gr.Button("← Back", elem_id="back-btn")
           clear_btn = gr.Button("Clear", elem_id="clear-btn")
 
         submit_btn.click(
