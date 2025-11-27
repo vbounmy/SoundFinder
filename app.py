@@ -20,15 +20,11 @@ GENIUS_API_KEY = os.getenv("GENIUS_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
-# GENIUS_API_KEY = "m17Yir9x2IJlr2NIISUD6ge8O2gJ26kVLx72rMajYdGVtm5Jr-1L0shJmww1SChw"
-# SERPER_API_KEY = "c9defe3057230b55f73bf0095972b9dd8410cc13"
-# MISTRAL_API_KEY ="WBPRJ3uH9OLYBxUWDe8MKncRV5kUiT7I"
-
 recognizer = sr.Recognizer()
 
 
 # ============================
-# 🌍 LANGUAGE MAP
+# LANGUAGE MAP
 # ============================
 language_map = {
     "Français": "fr-FR",
@@ -189,7 +185,7 @@ def make_youtube_iframe(youtube_link: str) -> str:
 
     embed_url = f"https://www.youtube.com/embed/{video_id}"
     return f"""
-    <div style="width:100%; display:flex; justify-content:center;">
+    <div style="width:100%; display:flex; justify-content:center; border-radius:10px">
         <iframe width="720" height="405"
         src="{embed_url}"
         frameborder="0"
@@ -217,13 +213,13 @@ def vocal_pipeline(audio, language):
     try:
 
         if audio is None:
-            return "Pas d'audio", "", [], [], "Aucune correspondance trouvée", ""
+            return "Pas d'audio", "", [], [], "Aucune correspondance trouvée", "", "", ""
 
         if isinstance(audio, dict):
             sample_rate = audio.get("sample_rate", 44100)
             data = audio.get("data", None)
             if data is None:
-                return "Audio invalide", "", [], [], "Aucune correspondance trouvée"
+                return "Audio invalide", "", [], [], "Aucune correspondance trouvée", "", "", ""
         else:
             sample_rate, data = audio
 
@@ -240,7 +236,7 @@ def vocal_pipeline(audio, language):
                 text = recognizer.recognize_google(audio_data, language=language_map[language])
 
         except Exception as e:
-            return (f"Erreur transcription : {e}", "", [], [], "Aucune correspondance trouvée", "")
+            return f"Erreur transcription : {e}", "", [], [], "Aucune correspondance trouvée", "", "", ""
 
         # 2. NLP
         lyrics_fragment = agent_nlp(text)["lyrics_fragment"]
@@ -251,14 +247,19 @@ def vocal_pipeline(audio, language):
 
         # 4. FINAL DECISION (LLM)
         final_song = decide_final_title_llm(lyrics_fragment, genius_results, google_results)
-        final_title = f"{final_song['title']} by {final_song['artist']}"
+        final_title = f"""
+            <div style='line-height: 1.1;'>
+                <span style="font-size: 24px; font-weight: 700;">{final_song['title']}</span><br>
+                <span style="font-size: 18px; font-weight: 400; opacity: 0.8;">{final_song['artist']}</span>
+            </div>
+            """
 
         # 5. YOUTUBE + SPOTIFY LINKS
-        youtube_md = f"[Watch on YouTube]({youtube_link})" if youtube_link else "No YouTube link found"
+        youtube_md = f"[Watch on YouTube ↗]({youtube_link})" if youtube_link else "No YouTube link found"
         youtube_html = make_youtube_iframe(youtube_link) if youtube_link else "No YouTube link found"
 
         spotify_url = build_spotify_search_url(final_song['title'], final_song['artist'])
-        spotify_md = f"[Open in Spotify]({spotify_url})" if spotify_url else "No Spotify link found"
+        spotify_md = f"[Open in Spotify ↗]({spotify_url})" if spotify_url else "No Spotify link found"
 
         return text, lyrics_fragment, genius_results, google_results, final_title, youtube_md, youtube_html, spotify_md
     
@@ -607,13 +608,14 @@ textarea, input, select {
 }
 
 #main-page{
-    padding: 5px 100px 10px 100px;
+    padding: 5px 8vw 10px 8vw;
     justify-content: center;
     align-items: center;
 }
 
 .header-container{
-    width: 900px;
+    margin: 0px 100px 40px 100px;
+    width: 600px;
     background: rgba(0,0,0,0.45);
     border: 1px solid rgba(79,70,229,0.9);
     border-radius: 50px;
@@ -622,13 +624,13 @@ textarea, input, select {
 }
 
 .header{
-    height: 70px;
-    width: 900px;
     padding: 0px 20px;
+    height: 70px;
+    width: 600px;
     display: flex;
     flex-direction: row;
     gap: 15px;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
 }
 #app-logo {
@@ -643,15 +645,15 @@ textarea, input, select {
 }
 
 .neon-box {
-    margin: 15px;
     padding: 20px;
-    background: transparent !important;
-    border: 1px solid rgba(79,70,229,0.9) !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(79, 70, 229, 0.9) !important;
     border-radius: 25px !important;
-    box-shadow: 0 0 18px rgba(79,70,229,0.5);
+    box-shadow: 0 0 18px rgba(79, 70, 229, 0.5);
     backdrop-filter: blur(6px);
 }
 #submit-btn {
+    margin: 10px 0px;
     background: linear-gradient(90deg, #4F46E5, #DE1A9C) !important;
     color: white !important;
     height: 30px !important;
@@ -662,17 +664,17 @@ textarea, input, select {
 }
 #submit-btn:hover {
     background: transparent !important;
-    color: rgb(255,255,255) !important;
+    color: rgb(255, 255, 255) !important;
     border: 1px solid #4F46E5 !important;
 }
 
 .final-result-container {
-    margin: 15px;
+    margin: 50px;
     padding: 20px;
     background: transparent !important;
-    border: 1px solid rgba(79,70,229,0.9) !important;
+    border: 1px solid rgba(79, 70, 229, 0.9) !important;
     border-radius: 25px !important;
-    box-shadow: 0 0 18px rgba(79,70,229,0.5);
+    box-shadow: 0 0 200px rgba(79, 70, 229, 0.5);
     backdrop-filter: blur(6px);
     overflow: hidden;
 }
@@ -699,15 +701,63 @@ textarea, input, select {
     animation: spin 10s linear infinite;
 }
 #final-title-box {
-    max-width: 350px !important;
-    text-align: center !important;
+    margin: 15px 0;
+    height: 150px;
+    width: 100%;
+    text-align: left;
+    font-size: 20px !important;
+    color: white !important;
+    overflow: hidden;
+}
+#final-title-box div {
+    height: 150px;
+    font-size: 20px !important;
+    color: white !important;
+    text-align: left;
+    overflow: hidden;
 }
 #final-result-text {
     font-size: 20px !important;
     letter-spacing: clamp(-1.75px, -0.25vw, -3.5px);
 }
+.neon-box {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(79, 70, 229, 0.9) !important;
+    border-radius: 25px !important;
+    box-shadow: 0 0 18px rgba(79, 70, 229, 0.5);
+    backdrop-filter: blur(6px);
+}
+.youtube-iframe-container {
+    padding: 10px;
+    margin: 5px 0px;
+    min-height: 505px !important;
+    height: auto !important;
+    width: auto !important;
+    overflow: visible !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(79, 70, 229, 0.9) !important;
+    border-radius: 25px !important;
+    box-shadow: 0 0 35px rgba(79, 70, 229, 0.5);
+    backdrop-filter: blur(6px);
+}
+.spotify-link-container {
+    padding: 5px;
+    margin: 5px 0px;
+    flex: 0 0 100px !important;
+    min-height: 505px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    text-align: center !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(79, 70, 229, 0.9) !important;
+    border-radius: 25px !important;
+    box-shadow: 0 0 35px rgba(79, 70, 229, 0.5);
+    backdrop-filter: blur(6px);
+}
 
 .back_clear_btn{
+    margin: 10px 0px;
     display: flex !important;
     flex-direction: row !important;
     justify-content: center !important;
@@ -752,7 +802,6 @@ textarea, input, select {
 # INTERFACE
 # ---------------------------
 
-
 with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
     gr.HTML(f"<style>{custom_css}</style>")
 
@@ -760,6 +809,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
 
     with gr.Column(visible=True, elem_id="landing") as landing_col:
 
+        # --- WELCOME MESSAGE ---
         with gr.Column(visible=True, elem_classes="landing-welcome-container"):
             gr.HTML("""
             <div class="aurora-container">
@@ -775,6 +825,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
             </div>
             """)
 
+        # --- VINYLE ANIMATION + TEXT ---
         with gr.Column(visible=True, elem_classes="landing-vinyle-container"):
             gr.HTML(f"""
                 <div id="landing-container">
@@ -790,12 +841,14 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                 </div>
             """)
 
+        # --- ENTER APP BUTTON ---
         with gr.Column(visible=True, elem_classes="landing-enter-btn"):
             enter_btn = gr.Button("🎧 Enter App →", elem_id="enter-btn")
 
     # ====== APP PAGE ======
     with gr.Column(visible=False, elem_id="main-page") as app_col:
 
+        # --- HEADER ---
         with gr.Row(elem_classes="header-container"):
             gr.HTML(f"""
                 <div class="header">
@@ -808,6 +861,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                 </class>
             """)
 
+        # --- AUDIO INPUT + LANGUAGE SELECTION ---
         with gr.Column(elem_classes="neon-box"):
             audio_input = gr.Audio(type="numpy", label="🎤 Drop your audio or record your voice")
 
@@ -823,8 +877,10 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                 show_label=False
             )
 
+        # --- SUBMIT (search) BUTTON ---
         submit_btn = gr.Button("Search", elem_id="submit-btn")
 
+        # --- OUTPUTS (not visible for the user) ---
         with gr.Accordion("Transcription", open=True, elem_classes="neon-box", visible=False):
             out_transcript = gr.Textbox(lines=3, show_label=False)
 
@@ -837,6 +893,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
         with gr.Accordion("Google results", open=True, elem_classes="neon-box", visible=False):
             out_google = gr.JSON()
 
+        # --- FINAL RESULT ---
         with gr.Column(elem_classes="final-result-container"):
             gr.HTML("""
             <div id=final-result-text>
@@ -850,31 +907,33 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="violet")) as demo:
                         <img id="vinyle" src="data:image/png;base64,{vinyle_base64}" />
                     </div>
                 """)
-                out_final_title = gr.Textbox(lines=2, show_label=False, elem_id="final-title-box")
-            out_youtube = gr.Markdown(label="YouTubes Link")
+                with gr.Column():
+                    out_final_title = gr.HTML(elem_id="final-title-box")
+                    out_youtube = gr.Markdown(label="YouTubes Link")
 
-        with gr.Accordion("", open=True, elem_classes="neon-box"):
-            gr.HTML(f"""
-                    <div style="display:flex;align-items:center;gap:15px;margin-bottom:12px;">
-                        <img src="data:image/png;base64,{youtube_logo_base64}"
-                            alt="YouTube"
-                            style="width:120px;height:auto;object-fit:contain;">
+        # --- YOUTUBE IFRAME + SPOTIFY LINK ---
+        with gr.Row():
+            with gr.Column(elem_classes="youtube-iframe-container"):
+                gr.HTML(f"""
+                        <div>
+                            <img src="data:image/png;base64,{youtube_logo_base64}"
+                                alt="YouTube"
+                                style="width:100px;height:auto;object-fit:contain">
+                        </div>
+                    """)
+                out_youtube_video = gr.HTML()
+
+            with gr.Column(elem_classes="spotify-link-container"):
+                gr.HTML(f"""
+                    <div>
+                        <img src="data:image/jpeg;base64,{spotify_logo_base64}"
+                            alt="Spotify"
+                            style="width:100px;height:auto;text-align:center">
                     </div>
                 """)
-            out_youtube_video = gr.HTML()
-
-        with gr.Accordion("", open=True, elem_classes="neon-box"):
-            gr.HTML(f"""
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                    <img src="data:image/jpeg;base64,{spotify_logo_base64}"
-                        alt="Spotify"
-                        style="width:56px;height:56px;">
-                    <h3 style="margin:0;font-size:22px;">Spotify</h3>
-                </div>
-            """)
-
-            out_spotify = gr.Markdown(label="")
-            
+                out_spotify = gr.Markdown(label="")
+    
+        # --- BACK + CLEAR BUTTONS ---    
         with gr.Column(visible=True, elem_classes="back_clear_btn"):
           back_btn  = gr.Button("← Back", elem_id="back-btn")
           clear_btn = gr.Button("Clear", elem_id="clear-btn")
