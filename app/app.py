@@ -83,7 +83,7 @@ def create_app():
                         <div id=header-text>
                             <p>Find a song easily from your voice, in any language</p>
                         </div>
-                    </class>
+                    </div>
                 """)
 
             # --- AUDIO INPUT + LANGUAGE SELECTION ---
@@ -121,9 +121,17 @@ def create_app():
             # --- FINAL RESULT ---
             with gr.Column(elem_classes="final-result-container"):
                 gr.HTML("""
-                <div id=final-result-text>
-                    <p>THE <b>SONG</b> YOU ARE LOOKING FOR</p>
-                    <p>seems to be ...</p>
+                <div class="aurora-container">
+                    <h3 class="aurora-title">
+                        The <b>song</b> you are looking for
+                        <div class="aurora">
+                            <div class="aurora__item"></div>
+                            <div class="aurora__item"></div>
+                            <div class="aurora__item"></div>
+                            <div class="aurora__item"></div>
+                        </div>
+                    </h3>
+                    <p style=font-size:20px>seems to be ...</p>
                 </div>
                 """)
                 with gr.Row(elem_id="vinyle-and-title"):

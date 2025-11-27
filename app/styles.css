@@ -162,6 +162,10 @@ select {
   }
 }
 
+/* ============================
+  LANDING PAGE STYLES
+  ============================ */
+
 #landing {
   margin: auto;
   padding: 20px 50px;
@@ -323,6 +327,10 @@ select {
   border: 1px solid #4f46e5 !important;
 }
 
+/* ============================
+MAIN PAGE PAGE STYLES
+============================ */
+
 #main-page {
   padding: 5px 8vw 10px 8vw;
   justify-content: center;
@@ -346,18 +354,21 @@ select {
   display: flex;
   flex-direction: row;
   gap: 15px;
+  text-align: center;
   justify-content: center;
-  align-items: center;
+  align-items: center !important;
 }
 #app-logo {
   width: 80px;
   height: 80px;
   background: transparent !important;
+  text-align: center !important;
 }
 #header-text {
   max-width: 500px;
   color: white;
   font-size: 16px !important;
+  text-align: center !important;
 }
 
 .neon-box {
@@ -368,6 +379,7 @@ select {
   box-shadow: 0 0 18px rgba(79, 70, 229, 0.5);
   backdrop-filter: blur(6px);
 }
+
 #submit-btn {
   margin: 10px 0px;
   background: linear-gradient(90deg, #4f46e5, #de1a9c) !important;
@@ -386,15 +398,14 @@ select {
 
 .final-result-container {
   margin: 50px;
-  padding: 20px;
-  background: transparent !important;
+  padding: 20px 20px 75px 20px;
+  background: rgb(0, 0, 0) !important;
   border: 1px solid rgba(79, 70, 229, 0.9) !important;
   border-radius: 25px !important;
   box-shadow: 0 0 200px rgba(79, 70, 229, 0.5);
   backdrop-filter: blur(6px);
   overflow: hidden;
 }
-
 #vinyle-and-title {
   display: flex !important;
   justify-content: center !important;
@@ -417,12 +428,12 @@ select {
   animation: spin 10s linear infinite;
 }
 #final-title-box {
-  margin: 15px 0;
   height: 150px;
   width: 100%;
   text-align: left;
   font-size: 20px !important;
   color: white !important;
+  align-items: center !important;
   overflow: hidden;
 }
 #final-title-box div {
